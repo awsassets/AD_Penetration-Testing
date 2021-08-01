@@ -1,1 +1,0 @@
-powercat -l -v -p *port* -t 100
