@@ -1,0 +1,3 @@
+$ADClass = [System.DirectoryServices.ActiveDirectory.Domain]
+
+$ADClass::GetCurrentDomain()

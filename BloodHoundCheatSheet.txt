@@ -1,0 +1,3 @@
+Import-Module .\SharpHound.ps1 (or . .\SharpHound.ps1)
+
+Invoke-BloodHound -CollectionMethod All

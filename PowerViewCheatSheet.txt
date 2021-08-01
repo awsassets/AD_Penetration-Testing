@@ -1,0 +1,36 @@
+Get-NetUser - show users on the domain (Get-NetUser -UserName "username" could also show information about a specific user, -Domain, etc.)
+
+Get-NetGroup - show groups on the domain (Get-NetGroup -UserName "username" could also show group information about a specific user)
+
+Get-NetGroupMember - show details of a member in a certain group i.e 'Get-NetGroupMember -GroupName "group name" -Domain "domain"'
+
+Get-NetComputer - show computers on the domain (Get-NetComputer | Resolve-IPAddress would show the computers in the domain with the IP addresses)
+
+Get-LoggedOnLocal -ComputerName "computer name"
+
+Invoke-ShareFinder - finds shares
+
+Get-NetGPO - show Group POlicies
+
+Get-NetOU -FullData - show data about Organizational Units (OU) (following this - Get-NetNPO -GPOname '{SOME-GPO-NAME}' can show the GPO info related to the data
+collected from Get-NetOU)
+
+Get-AclObject -SamAccountName show acl info for an account name
+
+Invoke-ACLScanner -ResolveGUIDs - shows interesting ACLs
+
+Get-NetDomainTrust - show domain trusts
+
+Get-NetDomainTrust -Domain "domain" - show other domain's trusts
+
+Get-NetForest
+
+Get-NetForestCatalog
+
+Find-LocalAdminAccess
+
+Invoke-CheckLocalAdminAccess (-ComputerName "computername" #the computer name is found with Find-LocalAdminAccess)
+
+Invoke-UserHunter (-GroupName "group", -CheckAccess)
+
+Get-DomainSID - Get the domain SID lol
