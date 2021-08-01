@@ -1,0 +1,19 @@
+* DCShadow temporarily registers a new domain controller in the target domain and uses it to "push" attributes (like SIDHistory,SPNs etc) on specified objects without leaving the change logs for modified object!
+
+* The new domain controller is registered by modifying the Configuration container, SPNs of an existing computer object and couple of RPC services.
+
+* Because the attributes are changed from a "domain controller", there are no directory change logs on the actual DC for the target object.
+
+* By default, DA privileges are required to use DCShadow.
+
+* In his experiments, the attacker's machine must be part of the root domain.
+
+* We can use mimikatz for DCShadow. Two mimikatz instanced are required: One to start RPC servers with SYSTEM privileges and specify attributes to be modified:
+
+!+
+!processtoken
+lsadump::dcshadow /object:root1user /attribute:Description /value="Hello from DCShadow"
+
+And the second with enough privileges (DA or otherwise) to push the values.
+
+lsadump::dcshadow /push
