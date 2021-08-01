@@ -37,13 +37,13 @@ select * from master..sysservers (in heidiSQL.exe)
 -Enumerating Database Links - Manually
 	*Openquery() function can be used to run queries on a linked database
 
-select * from openquery("dcorp-sql1",'select * from master..sysservers')
+select * from openquery("domain-sql1",'select * from master..sysservers')
 
 -Enumerating Database Links
 
 Get-SQLServerLinkCrawl -Instance dcorp-mssql -Verbose
 
-it shows the links! dcorp-sql1 -> dcorp-mgmt -> eu-sql.eu.eurocorp.local
+it shows the links! domain-sql1 -> domain-computername -> eu-sql.eu.bigdomain.local
 
 -Executing Commands
 
